@@ -59,7 +59,7 @@ public sealed class DropServer : IDisposable
         try { File.WriteAllText(Path.Combine(Path.GetTempPath(), "LocalDrop.pin"), Pin); } catch { }
 #endif
         Port = NetUtil.FindFreePort(DefaultPort);
-        Addresses = NetUtil.LocalIPv4Addresses();
+        Addresses = Demo.IsEnabled ? Demo.Addresses : NetUtil.LocalIPv4Addresses();
         _pinFailures.Clear();
 
         _cts = new CancellationTokenSource();
@@ -86,7 +86,7 @@ public sealed class DropServer : IDisposable
 
     public void RefreshAddresses()
     {
-        Addresses = NetUtil.LocalIPv4Addresses();
+        Addresses = Demo.IsEnabled ? Demo.Addresses : NetUtil.LocalIPv4Addresses();
         StateChanged?.Invoke();
     }
 
@@ -113,7 +113,7 @@ public sealed class DropServer : IDisposable
         if (verb == HttpVerbs.Get && path == "/info")
         {
             ctx.Response.Headers["Cache-Control"] = "no-store";
-            await ctx.SendDataAsync(new { host = DeviceInfo.Current.Name, port = Port });
+            await ctx.SendDataAsync(new { host = Demo.IsEnabled ? Demo.HostName : DeviceInfo.Current.Name, port = Port });
             return;
         }
 

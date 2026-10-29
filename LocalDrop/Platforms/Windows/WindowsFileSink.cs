@@ -7,7 +7,7 @@ namespace LocalDrop;
 public sealed class WindowsFileSink : IFileSink
 {
     public string Root { get; }
-    public string RootDescription => Root;
+    public string RootDescription => Demo.IsEnabled ? Demo.WindowsRoot : Root;
 
     public WindowsFileSink()
     {
