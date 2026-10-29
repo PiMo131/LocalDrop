@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:local="clr-namespace:LocalDrop"
+             xmlns:s="clr-namespace:LocalDrop.Services"
+             x:Class="LocalDrop.MainPage"
+             x:DataType="local:MainViewModel"
+             Title="LocalDrop"
+             BackgroundColor="{AppThemeBinding Light=#f1f5f9, Dark=#0f172a}">
+
+    <ContentPage.Resources>
+        <local:NotConverter x:Key="Not" />
+        <local:NotEmptyConverter x:Key="NotEmpty" />
+        <local:RunningColorConverter x:Key="RunningColor" />
+        <Style TargetType="Border" x:Key="Card">
+            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=#ffffff, Dark=#1e293b}" />
+            <Setter Property="Stroke" Value="{AppThemeBinding Light=#cbd5e1, Dark=#334155}" />
+            <Setter Property="StrokeThickness" Value="1" />
+            <Setter Property="StrokeShape" Value="RoundRectangle 16" />
+            <Setter Property="Padding" Value="20" />
+        </Style>
+        <Style TargetType="Label">
+            <Setter Property="TextColor" Value="{AppThemeBinding Light=#0f172a, Dark=#e2e8f0}" />
+        </Style>
+        <Style TargetType="Label" x:Key="Muted">
+            <Setter Property="TextColor" Value="{AppThemeBinding Light=#64748b, Dark=#94a3b8}" />
+            <Setter Property="FontSize" Value="13" />
+        </Style>
+        <Style TargetType="Button">
+            <Setter Property="BackgroundColor" Value="#38bdf8" />
+            <Setter Property="TextColor" Value="#06283d" />
+            <Setter Property="FontAttributes" Value="Bold" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="16,10" />
+        </Style>
+        <Style TargetType="Button" x:Key="Secondary">
+            <Setter Property="BackgroundColor" Value="Transparent" />
+            <Setter Property="TextColor" Value="{AppThemeBinding Light=#0f172a, Dark=#e2e8f0}" />
+            <Setter Property="BorderColor" Value="{AppThemeBinding Light=#cbd5e1, Dark=#334155}" />
+            <Setter Property="BorderWidth" Value="1" />
+            <Setter Property="FontAttributes" Value="None" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="16,10" />
+        </Style>
+    </ContentPage.Resources>
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="16" MaximumWidthRequest="560" HorizontalOptions="Center">
+
+            <!-- Header -->
+            <HorizontalStackLayout Spacing="12" Margin="0,8,0,0">
+                <Image Source="logo.png" WidthRequest="36" HeightRequest="36" />
+                <VerticalStackLayout VerticalOptions="Center">
+                    <Label Text="{x:Static s:Strings.Title}" FontSize="24" FontAttributes="Bold" />
+                    <Label Text="{x:Static s:Strings.Subtitle}" Style="{StaticResource Muted}" />
+                </VerticalStackLayout>
+            </HorizontalStackLayout>
+
+            <!-- Status + QR -->
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Spacing="14">
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                        <Ellipse Grid.Column="0" WidthRequest="12" HeightRequest="12" VerticalOptions="Center">
+                            <Ellipse.Fill>
+                                <SolidColorBrush Color="{Binding IsRunning, Converter={StaticResource RunningColor}}" />
+                            </Ellipse.Fill>
+                        </Ellipse>
+                        <Label Grid.Column="1" Text="{Binding StatusText}" FontSize="16" FontAttributes="Bold" VerticalOptions="Center" />
+                        <Button Grid.Column="2" Text="{Binding ToggleText}" Command="{Binding ToggleCommand}" Style="{StaticResource Secondary}" />
+                    </Grid>
+
+                    <Label Text="{x:Static s:Strings.NoNetworkText}" IsVisible="{Binding HasNetwork, Converter={StaticResource Not}}"
+                           TextColor="#f87171" />
+
+                    <Grid ColumnDefinitions="{OnIdiom Phone='*', Default='*,Auto'}"
+                          RowDefinitions="{OnIdiom Phone='Auto,Auto', Default='Auto'}"
+                          ColumnSpacing="20" RowSpacing="16" IsVisible="{Binding IsRunning}">
+                        <VerticalStackLayout Grid.Column="0" Grid.Row="0" Spacing="10" VerticalOptions="Center">
+                            <Label Text="{x:Static s:Strings.Code}" Style="{StaticResource Muted}" />
+                            <Label Text="{Binding Pin}" FontSize="44" FontAttributes="Bold" CharacterSpacing="8" LineBreakMode="NoWrap" />
+                            <Label Text="{Binding Url}" FontSize="15" TextColor="#38bdf8" FontFamily="Consolas">
+                                <Label.GestureRecognizers>
+                                    <TapGestureRecognizer Command="{Binding OpenInBrowserCommand}" />
+                                </Label.GestureRecognizers>
+                            </Label>
+                            <Label Text="{Binding OtherUrls}" Style="{StaticResource Muted}" IsVisible="{Binding OtherUrls, Converter={StaticResource NotEmpty}}" />
+                            <Label Text="{x:Static s:Strings.ScanHint}" Style="{StaticResource Muted}" LineBreakMode="WordWrap" />
+                        </VerticalStackLayout>
+                        <Border Grid.Column="{OnIdiom Phone=0, Default=1}" Grid.Row="{OnIdiom Phone=1, Default=0}"
+                                HorizontalOptions="{OnIdiom Phone=Center, Default=End}"
+                                BackgroundColor="White" StrokeThickness="0" StrokeShape="RoundRectangle 12" Padding="6"
+                                IsVisible="{Binding HasNetwork}">
+                            <Image Source="{Binding QrImage}" WidthRequest="180" HeightRequest="180" Aspect="AspectFit" />
+                        </Border>
+                    </Grid>
+
+                    <FlexLayout Wrap="Wrap" JustifyContent="Start" Direction="Row" IsVisible="{Binding IsRunning}">
+                        <Button Text="{x:Static s:Strings.CopyLink}" Command="{Binding CopyLinkCommand}" Style="{StaticResource Secondary}" Margin="0,0,8,8" />
+                        <Button Text="{x:Static s:Strings.NewPin}" Command="{Binding NewPinCommand}" Style="{StaticResource Secondary}" Margin="0,0,8,8" />
+                        <Button Text="{x:Static s:Strings.Refresh}" Command="{Binding RefreshNetworkCommand}" Style="{StaticResource Secondary}" Margin="0,0,8,8" />
+                    </FlexLayout>
+                    <Label Text="{Binding Toast}" TextColor="#4ade80" IsVisible="{Binding Toast, Converter={StaticResource NotEmpty}}" />
+                    <Label Text="{x:Static s:Strings.LanOnly}" Style="{StaticResource Muted}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Save location -->
+            <Border Style="{StaticResource Card}">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <VerticalStackLayout Grid.Column="0" Spacing="4" VerticalOptions="Center">
+                        <Label Text="{x:Static s:Strings.SavedTo}" Style="{StaticResource Muted}" />
+                        <Label Text="{Binding SaveLocation}" FontSize="13" LineBreakMode="CharacterWrap" />
+                    </VerticalStackLayout>
+                    <Button Grid.Column="1" Text="{x:Static s:Strings.OpenFolder}" Command="{Binding OpenFolderCommand}" VerticalOptions="Center" />
+                </Grid>
+            </Border>
+
+            <!-- Received -->
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="{x:Static s:Strings.Received}" FontSize="16" FontAttributes="Bold" />
+                    <VerticalStackLayout IsVisible="{Binding IsTransferring}" Spacing="4">
+                        <Label Text="{Binding ProgressText}" Style="{StaticResource Muted}" />
+                        <ProgressBar Progress="{Binding Progress}" ProgressColor="#38bdf8" />
+                    </VerticalStackLayout>
+                    <Label Text="{x:Static s:Strings.NothingYetText}" Style="{StaticResource Muted}" IsVisible="{Binding HasReceived, Converter={StaticResource Not}}" />
+                    <CollectionView ItemsSource="{Binding Received}" IsVisible="{Binding HasReceived}" SelectionMode="None">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate x:DataType="local:ReceivedItem">
+                                <VerticalStackLayout Padding="0,8" Spacing="2">
+                                    <Label Text="{Binding FileName}" FontSize="14" LineBreakMode="MiddleTruncation" />
+                                    <Label Text="{Binding Detail}" Style="{StaticResource Muted}" />
+                                </VerticalStackLayout>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </VerticalStackLayout>
+            </Border>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

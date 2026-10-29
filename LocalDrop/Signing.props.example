@@ -1,0 +1,13 @@
+<!-- Copy to Signing.props and fill in your own keystore. Signing.props is git-ignored.
+     Create a keystore with:
+       keytool -genkeypair -v -keystore localdrop.keystore -alias localdrop -keyalg RSA -keysize 2048 -validity 10000
+-->
+<Project>
+  <PropertyGroup Condition="'$(Configuration)' == 'Release' And $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+    <AndroidKeyStore>true</AndroidKeyStore>
+    <AndroidSigningKeyStore>$(MSBuildThisFileDirectory)localdrop.keystore</AndroidSigningKeyStore>
+    <AndroidSigningKeyAlias>localdrop</AndroidSigningKeyAlias>
+    <AndroidSigningKeyPass>CHANGE_ME</AndroidSigningKeyPass>
+    <AndroidSigningStorePass>CHANGE_ME</AndroidSigningStorePass>
+  </PropertyGroup>
+</Project>

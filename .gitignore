@@ -1,0 +1,17 @@
+# Build output
+bin/
+obj/
+dist/
+*.user
+*.suo
+.vs/
+.idea/
+
+# Android signing — keep private (see README)
+*.keystore
+*.jks
+Signing.props
+
+# OS
+Thumbs.db
+.DS_Store

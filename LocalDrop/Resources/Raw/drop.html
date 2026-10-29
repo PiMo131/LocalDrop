@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LocalDrop</title>
+<style>
+  :root { --bg:#0f172a; --card:#1e293b; --fg:#e2e8f0; --muted:#94a3b8; --accent:#38bdf8; --ok:#4ade80; --err:#f87171; --border:#334155; }
+  @media (prefers-color-scheme: light) { :root { --bg:#f1f5f9; --card:#ffffff; --fg:#0f172a; --muted:#64748b; --border:#cbd5e1; } }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:var(--bg); color:var(--fg); min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:16px; }
+  h1 { font-size:1.6rem; margin:16px 0 4px; display:flex; align-items:center; gap:10px; }
+  h1 svg { width:32px; height:32px; }
+  .sub { color:var(--muted); margin:0 0 20px; text-align:center; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:20px; width:100%; max-width:520px; margin-bottom:16px; }
+  label { display:block; font-size:.85rem; color:var(--muted); margin-bottom:6px; }
+  input[type=text], input[type=tel] { width:100%; padding:12px 14px; border-radius:10px; border:1px solid var(--border); background:transparent; color:var(--fg); font-size:1rem; }
+  input[type=tel] { letter-spacing:.4em; font-size:1.4rem; text-align:center; }
+  .row { display:flex; gap:12px; }
+  .row > * { flex:1; }
+  #zone { border:2px dashed var(--border); border-radius:16px; padding:36px 16px; text-align:center; cursor:pointer; transition:.15s; }
+  #zone.over { border-color:var(--accent); background:rgba(56,189,248,.08); }
+  #zone .big { font-size:3rem; line-height:1; }
+  #zone p { margin:10px 0 0; color:var(--muted); }
+  ul { list-style:none; padding:0; margin:0; }
+  li { padding:10px 0; border-bottom:1px solid var(--border); }
+  li:last-child { border-bottom:0; }
+  .name { display:flex; justify-content:space-between; gap:12px; font-size:.95rem; word-break:break-all; }
+  .name span:last-child { color:var(--muted); white-space:nowrap; }
+  .bar { height:6px; background:var(--border); border-radius:3px; margin-top:8px; overflow:hidden; }
+  .bar i { display:block; height:100%; width:0; background:var(--accent); transition:width .15s; }
+  .ok .bar i { background:var(--ok); } .err .bar i { background:var(--err); }
+  .msg { font-size:.8rem; margin-top:4px; color:var(--muted); }
+  .err .msg { color:var(--err); }
+  .hidden { display:none !important; }
+  footer { color:var(--muted); font-size:.8rem; margin-top:auto; padding:16px; }
+</style>
+</head>
+<body>
+<h1><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg><span>LocalDrop</span></h1>
+<p class="sub" data-i18n="sub"></p>
+
+<div class="card" id="setup">
+  <div class="row">
+    <div>
+      <label data-i18n="pin"></label>
+      <input type="tel" id="pin" maxlength="4" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code">
+    </div>
+    <div>
+      <label data-i18n="name"></label>
+      <input type="text" id="sender" maxlength="40">
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div id="zone">
+    <div class="big">&#128194;</div>
+    <p data-i18n="drop"></p>
+    <input type="file" id="file" multiple class="hidden">
+  </div>
+</div>
+
+<div class="card hidden" id="listcard">
+  <ul id="list"></ul>
+</div>
+
+<footer id="target"></footer>
+
+<script>
+const T = {
+  en: { sub:"Drop files here and they land in the Downloads folder of this device.", pin:"Code", name:"Your name / device", drop:"Tap to choose files or drop them here", sending:"Sending…", done:"Received", badpin:"Wrong code", failed:"Failed", notlan:"Only reachable from the local network", nameph:"e.g. my phone", toobig:"Too large", target:"Sending to" },
+  nl: { sub:"Zet hier bestanden neer en ze komen in de map Downloads van dit apparaat.", pin:"Code", name:"Jouw naam / apparaat", drop:"Tik om bestanden te kiezen of sleep ze hierheen", sending:"Versturen…", done:"Ontvangen", badpin:"Verkeerde code", failed:"Mislukt", notlan:"Alleen bereikbaar vanaf het lokale netwerk", nameph:"bijv. mijn telefoon", toobig:"Te groot", target:"Versturen naar" }
+};
+const lang = (navigator.language || "en").toLowerCase().startsWith("nl") ? "nl" : "en";
+const t = k => T[lang][k];
+document.documentElement.lang = lang;
+document.querySelectorAll("[data-i18n]").forEach(e => e.textContent = t(e.dataset.i18n));
+
+const $ = id => document.getElementById(id);
+const pinEl = $("pin"), senderEl = $("sender"), zone = $("zone"), fileEl = $("file"), list = $("list");
+senderEl.placeholder = t("nameph");
+
+const params = new URLSearchParams(location.search);
+if (params.get("pin")) { pinEl.value = params.get("pin"); history.replaceState(null, "", location.pathname); }
+else if (localStorage.pin) pinEl.value = localStorage.pin;
+senderEl.value = localStorage.sender || guessDevice();
+pinEl.addEventListener("input", () => localStorage.pin = pinEl.value);
+senderEl.addEventListener("input", () => localStorage.sender = senderEl.value);
+
+fetch("/info").then(r => r.json()).then(i => { $("target").textContent = t("target") + ": " + i.host; }).catch(() => {});
+
+function guessDevice() {
+  const ua = navigator.userAgent;
+  if (/iPhone/.test(ua)) return "iPhone";
+  if (/iPad/.test(ua)) return "iPad";
+  if (/Android/.test(ua)) { const m = ua.match(/;\s([^;)]+)\sBuild/); return m ? m[1].trim() : "Android"; }
+  if (/Windows/.test(ua)) return "Windows PC";
+  if (/Macintosh/.test(ua)) return "Mac";
+  return "Device";
+}
+
+zone.addEventListener("click", () => fileEl.click());
+fileEl.addEventListener("change", () => { send([...fileEl.files]); fileEl.value = ""; });
+["dragenter", "dragover"].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.add("over"); }));
+["dragleave", "drop"].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.remove("over"); }));
+zone.addEventListener("drop", e => send([...e.dataTransfer.files]));
+document.addEventListener("paste", e => { const f = [...((e.clipboardData && e.clipboardData.files) || [])]; if (f.length) send(f); });
+
+function fmt(b) { if (b < 1024) return b + " B"; if (b < 1048576) return (b / 1024).toFixed(0) + " KB"; if (b < 1073741824) return (b / 1048576).toFixed(1) + " MB"; return (b / 1073741824).toFixed(2) + " GB"; }
+
+async function send(files) {
+  if (!files.length) return;
+  if (!/^\d{4}$/.test(pinEl.value)) { pinEl.focus(); pinEl.style.borderColor = "var(--err)"; setTimeout(() => pinEl.style.borderColor = "", 1200); return; }
+  $("listcard").classList.remove("hidden");
+  for (const f of files) await upload(f);
+}
+
+function upload(f) {
+  return new Promise(resolve => {
+    const li = document.createElement("li");
+    li.innerHTML = '<div class="name"><span>' + esc(f.name) + '</span><span>' + fmt(f.size) + '</span></div><div class="bar"><i></i></div><div class="msg">' + t("sending") + '</div>';
+    list.prepend(li);
+    const bar = li.querySelector("i"), msg = li.querySelector(".msg");
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", "/upload?name=" + encodeURIComponent(f.name));
+    xhr.setRequestHeader("X-Pin", pinEl.value);
+    xhr.setRequestHeader("X-Sender", encodeURIComponent(senderEl.value || guessDevice()));
+    xhr.setRequestHeader("Content-Type", "application/octet-stream");
+    xhr.upload.onprogress = e => { if (e.lengthComputable) bar.style.width = (e.loaded / e.total * 100) + "%"; };
+    xhr.onload = () => {
+      bar.style.width = "100%";
+      if (xhr.status === 200) { li.classList.add("ok"); msg.textContent = t("done"); }
+      else if (xhr.status === 401) { li.classList.add("err"); msg.textContent = t("badpin"); }
+      else if (xhr.status === 403) { li.classList.add("err"); msg.textContent = t("notlan"); }
+      else if (xhr.status === 413) { li.classList.add("err"); msg.textContent = t("toobig"); }
+      else { li.classList.add("err"); msg.textContent = t("failed") + " (" + xhr.status + ")"; }
+      resolve();
+    };
+    xhr.onerror = () => { li.classList.add("err"); msg.textContent = t("failed"); resolve(); };
+    xhr.send(f);
+  });
+}
+function esc(s) { return s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+</script>
+</body>
+</html>
